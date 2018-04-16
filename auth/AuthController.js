@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var bodyParser = require('body-parser');
+var VerifyToken = require('./VerifyToken');
 
 router.use(bodyParser.urlencoded({extended: false}));
 router.use(bodyParser.json());
@@ -31,28 +32,17 @@ router.post('/register', function(req, res){
     })
 });
 
-router.get('/me', function(req, res) {
-    var token = req.headers['x-access-token'];
-    if (!token) {
-        return res.status(401).send({auth: false, message: 'No token provided'});
-    }
-
-    jwt.verify(token, config.secret, function(err, decoded){
+router.get('/me', VerifyToken, function(req, res, next) {
+    User.findById(req.userId, {password: 0}, function(err, user) {
         if (err) {
-            return res.status(500).send({auth: false, message: 'Failed to authenticate token.'});
+            return res.status(500).send('There was a problem finding the user');
         }
 
-        User.findById(decoded.id, {password: 0}, function(err, user) {
-            if (err) {
-                return res.status(500).send('There was a problem finding the user');
-            }
+        if (!user) {
+            return res.status(404).send('No user found');
+        }
 
-            if (!user) {
-                return res.status(404).send('No user found');
-            }
-
-            res.status(200).send(user);
-        });
+        res.status(200).send(user);
     });
 });
 
